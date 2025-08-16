@@ -43,20 +43,17 @@ def create_website():
         response = requests.post(api_url, headers=headers, data=json.dumps(body), timeout=30)
 
         # --- NEW: STRICT ERROR CHECKING ---
-        # If the HTTP status code is 400 or higher, it's an error.
         if response.status_code >= 400:
             error_message = f"Netlify returned an error (HTTP {response.status_code})"
-            # Try to get more details from the response body
             try:
                 error_details = response.json().get("message", response.text)
                 error_message += f": {error_details}"
             except json.JSONDecodeError:
                 error_message += f": {response.text}"
             
-            print("ERROR:", error_message) # Log the specific error
+            print("ERROR:", error_message)
             return jsonify({"status": "error", "message": error_message}), 500
 
-        # If we reach here, the status code was successful (2xx)
         response_data = response.json()
         new_website_url = response_data.get("ssl_url") or response_data.get("url")
 
@@ -72,17 +69,9 @@ def create_website():
         }), 201
 
     except Exception as e:
-        # Catch any other unexpected errors
         print("UNEXPECTED ERROR:", str(e))
         return jsonify({"status": "error", "message": f"An unexpected error occurred: {str(e)}"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)```
-
-**Step 4: Upload to GitHub, Wait for Render, and Retest**
-*   Save the new `main.py` and upload it to your GitHub repository.
-*   Wait for Render to finish deploying the latest version.
-*   Run the **Execute step** in n8n one last time.
-
-This time, if there is an authentication problem, the new code is guaranteed to catch it and will return the *real* error message from Netlify.
+    app.run(host="0.0.0.0", port=port)
