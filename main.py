@@ -1,4 +1,22 @@
-# This is the new function. Delete the old one and paste this in its place.
+import os
+import requests
+import json
+from flask import Flask, request, jsonify
+
+# --- Environment Variables (Set these in Render's dashboard) ---
+NETLIFY_API_TOKEN = os.environ.get("NETLIFY_API_TOKEN", "")
+NETLIFY_TEAM_ID = os.environ.get("NETLIFY_TEAM_ID", "")
+SHARED_SECRET_KEY = os.environ.get("SHARED_SECRET_KEY", "")
+
+# Initialize the Flask web application
+app = Flask(__name__)
+
+# This endpoint is just for testing if the API is running
+@app.get("/")
+def index():
+    return "<h1>Visionbuilt Deployer is running.</h1>"
+
+# This is the main endpoint that n8n will call
 @app.post("/api/create-website")
 def create_website():
     # 1. --- Security Check ---
@@ -32,11 +50,16 @@ def create_website():
         body = { "files": files_payload }
 
         response = requests.post(api_url, headers=headers, data=json.dumps(body), timeout=30)
-        response.raise_for_status() 
         
+        # We will check the response later to decide if it was a real success
         response_data = response.json()
-        
-        # --- IMPROVEMENT: Check for multiple possible URL keys ---
+
+        # Check for an error message inside a successful response
+        if response.status_code >= 400 or response_data.get("error"):
+             print("Netlify returned an error:", response_data)
+             return jsonify({"status": "error", "message": f"Netlify returned an error: {response_data.get('message', 'Unknown error')}"}), 500
+
+        # IMPROVEMENT: Check for multiple possible URL keys
         new_website_url = response_data.get("ssl_url") or response_data.get("url") or response_data.get("deploy_ssl_url")
 
         if not new_website_url:
@@ -57,4 +80,8 @@ def create_website():
             error_message += f" | Details: {e.response.text}"
         
         return jsonify({"status": "error", "message": error_message}), 500
-```3.  Save the `main.py` file.
+
+# This part allows Render to run the Flask app
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
